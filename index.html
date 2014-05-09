@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<style>
+
+#message { 
+	text-align: center;
+	font-family: arial;
+	font-weight: bold;
+	font-size: 20px;
+	width:300px; 
+}
+
+#loginButton { 
+	position: relative;
+	left: 56px;
+	cursor: pointer;
+}
+
+#status { 
+	font-family: arial;
+	text-align: center;
+	color: red;
+	font-size: 10px;
+	width:300px;
+	position: relative;
+	visibility: hidden;
+}
+
+#friendslist {
+	position: relative;
+	visibility: hidden;
+	border:2px solid #ccc; 
+	width:300px; 
+	height: 275px; 
+	overflow-y: scroll; 
+}
+
+#inviteButton { 
+	border-radius: 2px;
+	width: 155px;
+	height: 30px;
+	background-color: rgb(185, 182, 182);
+	color: white;
+	font-family: arial;
+	text-align: center;
+	font-weight: bold;
+	vertical-align: middle;
+	display: table-cell;
+	cursor: pointer;
+	visibility: hidden;
+	position: relative;
+	left: 68px;
+	top: 6px;
+}
+
+.friendDiv { 
+	border-bottom: 1px solid lightgrey;
+	background-color: #FAFAFA;
+}
+
+.friendImage {  
+	width:40px; 
+	height: 40px; 
+	position: relative;
+	left: 50px;
+	top: 2px;}
+
+.friendName {  
+	position: relative;
+	left: 70px;
+	top: -23px;
+	font-size: 13px;
+	font-family: arial;
+	font-weight: bold;
+	}
+	
+.friendCheckbox{  
+	position: relative;
+	left: 22px;
+	top: -10px;
+}
+
+</style>
+<html>
+<head>
+<title>Facebook Request Example</title>
+<meta charset="UTF-8">
+</head>
+<body>
+<script>
+  // global variables
+  var friendsArray = [];
+  var checkboxArray = [];
+  //////////////////////////////////////////////////////////////////////////////////////////
+  //Login Button clicked.
+  function loginClick() {
+	   FB.login(function(response) {
+		   // handle the response
+		   checkLoginState(response)
+		}, {scope: 'public_profile,email,user_friends'});
+  }
+  //////////////////////////////////////////////////////////////////////////////////////////
+  //Check login status.
+  function statusChangeCallback(response) {
+    if (response.status === 'connected') {
+      // Logged into the app and Facebook.
+	  document.getElementById('status').innerHTML = 'You are logged in to the app';
+	  document.getElementById('loginButton').style.display = 'none';
+      pullFriends();
+    } else if (response.status === 'not_authorized') {
+      // The person is logged into Facebook, but not the app.
+      document.getElementById('status').innerHTML = 'Please log into the app.';
+    } else {
+      // The person is not logged into Facebook, 
+      document.getElementById('status').innerHTML = 'Please log into Facebook.';
+    }
+  }
+  
+  //////////////////////////////////////////////////////////////////////////////////////////
+  // This function is called when someone finishes with the Login
+  function checkLoginState() {
+    FB.getLoginStatus(function(response) {
+		statusChangeCallback(response);
+    });
+  }
+
+  window.fbAsyncInit = function() {
+		FB.init({
+			appId      : '222722281270743',
+			cookie     : true,  // enable cookies to allow the server to access the session
+			xfbml      : true,  // parse social plugins on this page
+			version    : 'v2.0' // use version 2.0
+		});
+
+		FB.getLoginStatus(function(response) {
+			statusChangeCallback(response);
+		});
+
+  };
+ 
+  //////////////////////////////////////////////////////////////////////////////////////////
+  // Load the SDK asynchronously
+  (function(d, s, id) {
+		var js, fjs = d.getElementsByTagName(s)[0];
+		if (d.getElementById(id)) return;
+		js = d.createElement(s); js.id = id;
+		js.src = "//connect.facebook.net/en_US/sdk.js";
+		fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+
+  //////////////////////////////////////////////////////////////////////////////////////////
+  //pull list of friends from facebook.
+  function pullFriends() {
+	
+	FB.api("/me/invitable_friends",function (response) {
+		if (response && !response.error) {
+			friendsArray = response.data;
+			//populate the firendslist div with users friends.
+			document.getElementById('status').innerHTML = 'pulled '+friendsArray.length+' friends.';
+			buildFriendsList();
+		}else{
+			//report errors.
+			document.getElementById('status').innerHTML = "error: "+response.error;
+	  }
+    });
+  }
+  
+  //////////////////////////////////////////////////////////////////////////////////////////
+  //Build the div containing the friendslist.
+  function buildFriendsList() {
+	var friendslistDiv = document.getElementById('friendslist');
+	var messgaeDiv = document.getElementById('message');
+	var friendCount = friendsArray.length;
+	
+	messgaeDiv.innerHTML = "Select friends to invite";
+	
+	var i = friendsArray.length;
+	
+	while(i--){
+		var div = document.createElement('div');
+		div.className = 'friendDiv';
+		
+		var checkbox = document.createElement('input');
+		checkbox.type = 'checkbox'
+		checkbox.value = friendsArray[i].id;
+		checkbox.className = 'friendCheckbox';
+		
+		div.appendChild(checkbox);
+		checkboxArray.push(checkbox);
+		
+		var image = new Image();
+		image.src = friendsArray[i].picture.data.url;
+		image.className = 'friendImage';
+		
+		div.appendChild(image);
+		
+		var span = document.createElement('span');
+		span.innerHTML = friendsArray[i].name;
+		span.className = 'friendName';
+		
+		div.appendChild(span);
+		
+		friendslistDiv.appendChild(div);
+	
+	}
+	
+	friendslistDiv.style.visibility = "visible";
+	document.getElementById('inviteButton').style.visibility = "visible";
+	document.getElementById('fbButton').style.visibility = "hidden";
+  }
+  
+  //////////////////////////////////////////////////////////////////////////////////////////
+  //submit the selected friends for invite using the Facebook request ui.
+   function submitInvite() {
+		var i = checkboxArray.length;
+		
+		var sendUIDs = '';
+		
+		while(i--){
+			if(checkboxArray[i].checked){
+				sendUIDs += checkboxArray[i].value + ',';
+			}
+		
+		}
+		if(sendUIDs != ''){
+			FB.ui({method: 'apprequests',
+				to: sendUIDs,
+				title: 'Test App Invite',
+				message: 'You have been invited',
+				}, callback);
+		}else{
+			document.getElementById('status').innerHTML = "No friends selected.";
+		}
+   }
+   
+   //////////////////////////////////////////////////////////////////////////////////////////
+   function callback(response){
+		if (response && response.error) {
+			//report errors.
+			document.getElementById('status').innerHTML = "invite error: "+response.error;
+	  }
+   }
+  
+</script>
+
+
+<!--Message text that provides user instructions-->
+<div id="message">Login to view friends</div>
+<!--Login button-->
+<div id="loginButton" onclick="loginClick();">
+	<img src="facebook_login_btn.png" width="190px">
+</div>
+<!--current status for debugging. Leaving in to help with code review. Must unhide to see it-->
+<div id="status"></div>
+<!--Container that populates users friends for invites-->
+<div id="friendslist"></div>
+<!--invite button-->
+<div id="inviteButton" onclick="submitInvite();">Invite Friends ></div>
+
+</body>
+</html>
